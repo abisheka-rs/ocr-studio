@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR Extraction Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,wght@0,300;0,500;0,700;1,300;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0f0e0c;
+    --paper: #f5f0e8;
+    --warm: #e8e0d0;
+    --accent: #c4521a;
+    --accent2: #2a5c45;
+    --accent-light: #f0ddd0;
+    --muted: #7a7060;
+    --border: #d0c8b8;
+    --success: #2a5c45;
+    --error: #8b2020;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    background-image:
+      repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(0,0,0,0.03) 28px);
+  }
+
+  /* Header */
+  header {
+    border-bottom: 2px solid var(--ink);
+    padding: 20px 40px;
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo span { color: var(--accent); font-style: italic; }
+
+  .tagline {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .badge {
+    font-size: 10px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Layout */
+  .main {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    min-height: calc(100vh - 65px);
+  }
+
+  .panel-left {
+    border-right: 2px solid var(--ink);
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+
+  .panel-right {
+    padding: 36px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* Section Labels */
+  .section-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Drop Zone */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    padding: 48px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--warm);
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .drop-zone.drag-over { transform: scale(1.01); }
+
+  .drop-icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    filter: grayscale(0.3);
+  }
+
+  .drop-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .drop-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .file-types {
+    margin-top: 16px;
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .ft-tag {
+    font-size: 9px;
+    padding: 3px 8px;
+    background: var(--ink);
+    color: var(--paper);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  #file-input { display: none; }
+
+  /* Options */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+
+  .format-toggle {
+    display: none;
+  }
+  .format-label {
+    display: block;
+    padding: 10px 6px;
+    text-align: center;
+    border: 1.5px solid var(--border);
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    background: var(--warm);
+  }
+  .format-toggle:checked + .format-label {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* File Queue */
+  .file-queue {
+    display: none;
+    background: var(--warm);
+    border: 1px solid var(--border);
+    padding: 16px;
+  }
+  .file-queue.has-files { display: block; }
+
+  .queued-file {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .queued-file:last-child { border-bottom: none; }
+
+  .file-ext-badge {
+    font-size: 9px;
+    padding: 2px 7px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .ext-pdf { background: #ffd5d5; color: #8b2020; }
+  .ext-img { background: #d5e8ff; color: #1a3c8b; }
+
+  .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-size { color: var(--muted); font-size: 10px; }
+
+  /* Extract Button */
+  .extract-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .extract-btn:hover:not(:disabled) { background: var(--accent); }
+  .extract-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .extract-btn.loading::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: var(--accent);
+    animation: progress 2s ease-in-out infinite;
+  }
+  @keyframes progress {
+    0% { width: 0; left: 0; }
+    50% { width: 60%; }
+    100% { width: 0; left: 100%; }
+  }
+
+  /* Right Panel */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    text-align: center;
+    gap: 12px;
+  }
+  .empty-icon { font-size: 64px; opacity: 0.3; }
+  .empty-title {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 300;
+    font-style: italic;
+  }
+  .empty-sub { font-size: 11px; color: var(--muted); }
+
+  /* Results */
+  .results { display: none; flex-direction: column; gap: 20px; }
+  .results.visible { display: flex; }
+
+  .result-card {
+    border: 1.5px solid var(--border);
+    background: white;
+    animation: slideIn 0.3s ease;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-header {
+    padding: 14px 20px;
+    border-bottom: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--warm);
+  }
+  .result-filename {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .stat-chips {
+    display: flex;
+    gap: 8px;
+  }
+  .stat-chip {
+    font-size: 10px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    background: var(--paper);
+    letter-spacing: 0.5px;
+  }
+  .stat-chip.success { border-color: var(--success); color: var(--success); }
+
+  /* Preview */
+  .preview-area {
+    padding: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 12px;
+    line-height: 1.9;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--ink);
+    position: relative;
+  }
+
+  .preview-fade {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: linear-gradient(transparent, white);
+    pointer-events: none;
+  }
+
+  /* Download Bar */
+  .download-bar {
+    padding: 12px 20px;
+    border-top: 1.5px solid var(--border);
+    display: flex;
+    gap: 8px;
+    background: var(--warm);
+    align-items: center;
+  }
+
+  .dl-label { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-right: 4px; }
+
+  .dl-btn {
+    padding: 7px 16px;
+    border: 1.5px solid var(--ink);
+    background: transparent;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-decoration: none;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .dl-btn:hover { background: var(--ink); color: var(--paper); }
+  .dl-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .dl-btn.primary:hover { background: var(--ink); border-color: var(--ink); }
+
+  /* History Sidebar */
+  .history-panel {
+    border-top: 2px solid var(--ink);
+    padding: 20px 32px;
+    background: var(--warm);
+  }
+
+  .history-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .history-item {
+    font-size: 10px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    background: var(--paper);
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-item:hover { border-color: var(--ink); }
+
+  /* Status Messages */
+  .status-bar {
+    padding: 10px 16px;
+    font-size: 11px;
+    display: none;
+    letter-spacing: 0.5px;
+  }
+  .status-bar.error { background: #fce8e8; color: var(--error); border-left: 3px solid var(--error); display: block; }
+  .status-bar.info { background: #e8f0e8; color: var(--success); border-left: 3px solid var(--success); display: block; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--warm); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* RAG Tips */
+  .rag-tip {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 10px 14px;
+    border-left: 2px solid var(--accent2);
+    background: rgba(42,92,69,0.05);
+    line-height: 1.7;
+  }
+  .rag-tip strong { color: var(--accent2); }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; }
+    .panel-left { border-right: none; border-bottom: 2px solid var(--ink); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">OCR<span>studio</span></div>
+  <span class="tagline">Document Extraction for RAG Pipelines</span>
+  <div class="header-right">
+    <span class="badge">Tesseract v5</span>
+    <span class="badge">Local Only</span>
+  </div>
+</header>
+
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+
+    <div>
+      <div class="section-label">01 / Upload</div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <span class="drop-icon">📄</span>
+        <div class="drop-title">Drop files here</div>
+        <div class="drop-sub">or click to browse<br>Processes locally — nothing is sent to the cloud</div>
+        <div class="file-types">
+          <span class="ft-tag">PDF</span>
+          <span class="ft-tag">PNG</span>
+          <span class="ft-tag">JPG</span>
+          <span class="ft-tag">TIFF</span>
+          <span class="ft-tag">BMP</span>
+          <span class="ft-tag">WEBP</span>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp,.gif" multiple>
+    </div>
+
+    <div class="file-queue" id="file-queue"></div>
+
+    <div>
+      <div class="section-label">02 / Output Formats</div>
+      <div class="options-grid">
+        <div>
+          <input type="checkbox" class="format-toggle" id="fmt-txt" value="txt" checked>
+          <label for="fmt-txt" class="format-label">TXT</label>
+        </div>
+        <div>
+          <input type="checkbox" class="format-toggle" id="fmt-md" value="md" checked>
+          <label for="fmt-md" class="format-label">MD</label>
+        </div>
+        <div>
+          <input type="checkbox" class="format-toggle" id="fmt-json" value="json" checked>
+          <label for="fmt-json" class="format-label">JSON</label>
+        </div>
+      </div>
+      <div class="rag-tip" style="margin-top:12px">
+        <strong>RAG tip:</strong> JSON includes chunk IDs, page metadata, and word counts. Markdown preserves structure for better chunking. Use both for maximum flexibility.
+      </div>
+    </div>
+
+    <div id="status-bar" class="status-bar"></div>
+
+    <button class="extract-btn" id="extract-btn" disabled onclick="startExtraction()">
+      Extract Text
+    </button>
+
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+    <div class="section-label">03 / Extracted Output</div>
+
+    <div class="empty-state" id="empty-state">
+      <span class="empty-icon">◎</span>
+      <div class="empty-title">Nothing extracted yet</div>
+      <div class="empty-sub">Upload a file and click Extract to begin</div>
+    </div>
+
+    <div class="results" id="results-container"></div>
+  </div>
+</div>
+
+<script>
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const fileQueue = document.getElementById('file-queue');
+  const extractBtn = document.getElementById('extract-btn');
+  const statusBar = document.getElementById('status-bar');
+  const resultsContainer = document.getElementById('results-container');
+  const emptyState = document.getElementById('empty-state');
+
+  let files = [];
+
+  // Drag & Drop
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    addFiles([...e.dataTransfer.files]);
+  });
+  fileInput.addEventListener('change', () => addFiles([...fileInput.files]));
+
+  function addFiles(newFiles) {
+    newFiles.forEach(f => {
+      if (!files.find(x => x.name === f.name)) files.push(f);
+    });
+    renderQueue();
+  }
+
+  function removeFile(i) {
+    files.splice(i, 1);
+    renderQueue();
+  }
+
+  function renderQueue() {
+    if (files.length === 0) {
+      fileQueue.classList.remove('has-files');
+      extractBtn.disabled = true;
+      return;
+    }
+    fileQueue.classList.add('has-files');
+    extractBtn.disabled = false;
+    fileQueue.innerHTML = files.map((f, i) => {
+      const ext = f.name.split('.').pop().toLowerCase();
+      const isImg = ext !== 'pdf';
+      const size = f.size > 1024*1024 ? (f.size/1024/1024).toFixed(1)+'MB' : (f.size/1024).toFixed(0)+'KB';
+      return `
+        <div class="queued-file">
+          <span class="file-ext-badge ${isImg ? 'ext-img' : 'ext-pdf'}">${ext.toUpperCase()}</span>
+          <span class="file-name" title="${f.name}">${f.name}</span>
+          <span class="file-size">${size}</span>
+          <span style="cursor:pointer;color:#999;font-size:14px" onclick="removeFile(${i})">✕</span>
+        </div>`;
+    }).join('');
+  }
+
+  function getSelectedFormats() {
+    return ['txt','md','json'].filter(f => document.getElementById(`fmt-${f}`).checked);
+  }
+
+  function showStatus(msg, type = 'info') {
+    statusBar.textContent = msg;
+    statusBar.className = `status-bar ${type}`;
+  }
+
+  function hideStatus() {
+    statusBar.className = 'status-bar';
+  }
+
+  async function startExtraction() {
+    if (files.length === 0) return;
+    const formats = getSelectedFormats();
+    if (formats.length === 0) { showStatus('Select at least one output format.', 'error'); return; }
+
+    extractBtn.disabled = true;
+    extractBtn.classList.add('loading');
+    extractBtn.textContent = 'Extracting...';
+    hideStatus();
+    emptyState.style.display = 'none';
+    resultsContainer.classList.add('visible');
+
+    for (const file of files) {
+      await extractFile(file, formats);
+    }
+
+    extractBtn.classList.remove('loading');
+    extractBtn.textContent = 'Extract Text';
+    extractBtn.disabled = false;
+  }
+
+  async function extractFile(file, formats) {
+    const placeholderId = 'placeholder_' + Date.now();
+    resultsContainer.insertAdjacentHTML('afterbegin', `
+      <div class="result-card" id="${placeholderId}">
+        <div class="result-header">
+          <div class="result-filename">${file.name}</div>
+          <span class="stat-chip">Processing…</span>
+        </div>
+        <div class="preview-area" style="color:#999;font-style:italic">
+          Extracting text — this may take a moment for large files...
+        </div>
+      </div>
+    `);
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formats.forEach(f => formData.append('formats', f));
+
+    try {
+      const res = await fetch('/api/extract', { method: 'POST', body: formData });
+      const data = await res.json();
+      const card = document.getElementById(placeholderId);
+
+      if (!res.ok || data.error) {
+        card.innerHTML = `
+          <div class="result-header" style="background:#fce8e8">
+            <div class="result-filename">${file.name}</div>
+            <span class="stat-chip" style="color:#8b2020;border-color:#8b2020">Failed</span>
+          </div>
+          <div class="preview-area" style="color:#8b2020">${data.error || 'Unknown error'}</div>`;
+        return;
+      }
+
+      // Build download buttons
+      const dlBtns = Object.entries(data.output_files).map(([fmt, fname], i) => `
+        <a class="dl-btn ${i===0?'primary':''}" href="/api/download/${fname}" download="${fname}">
+          ↓ ${fmt.toUpperCase()}
+        </a>`).join('');
+
+      card.innerHTML = `
+        <div class="result-header">
+          <div class="result-filename">${data.filename}</div>
+          <div class="stat-chips">
+            <span class="stat-chip success">${data.word_count.toLocaleString()} words</span>
+            <span class="stat-chip">${data.total_pages} page${data.total_pages>1?'s':''}</span>
+            <span class="stat-chip">${data.elapsed_seconds}s</span>
+          </div>
+        </div>
+        <div class="preview-area">
+<span style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#999;display:block;margin-bottom:12px">── PREVIEW ──</span>${escapeHtml(data.preview)}${data.preview.length >= 3000 ? '\n\n[… truncated — download for full text]' : ''}
+          <div class="preview-fade"></div>
+        </div>
+        <div class="download-bar">
+          <span class="dl-label">Download</span>
+          ${dlBtns}
+        </div>`;
+
+    } catch (err) {
+      document.getElementById(placeholderId).innerHTML = `
+        <div class="result-header" style="background:#fce8e8">
+          <div class="result-filename">${file.name}</div>
+          <span class="stat-chip" style="color:#8b2020">Network Error</span>
+        </div>
+        <div class="preview-area" style="color:#8b2020">${err.message}</div>`;
+    }
+  }
+
+  function escapeHtml(t) {
+    return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>
